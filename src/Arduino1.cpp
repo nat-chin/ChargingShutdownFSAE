@@ -26,12 +26,7 @@ unsigned long last_time = 0;
 
 void loop() {
   
-  
-  if(millis()-last_time == 250) {
-    mcp2515.sendMessage(&canMsgSend);
-    // Serial.println("Messages sent");
-
-    if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
+  if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
     Serial.print(canMsgRec.can_id, HEX); // print ID
     Serial.print(" "); 
     Serial.print(canMsgRec.can_dlc, HEX); // print DLC
@@ -43,28 +38,12 @@ void loop() {
     }
 
     Serial.println();      
-    }
-    
   }
 
-  if(millis()-last_time == 250) {
+  if(millis()-last_time == 500) {
     mcp2515.sendMessage(&canMsgSend);
     // Serial.println("Messages sent");
-
-    if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
-    Serial.print(canMsgRec.can_id, HEX); // print ID
-    Serial.print(" "); 
-    Serial.print(canMsgRec.can_dlc, HEX); // print DLC
-    Serial.print(" ");
-    
-    for (int i = 0; i<canMsgRec.can_dlc; i++)  {  // print the data
-      Serial.print(canMsgRec.data[i],HEX);
-      Serial.print(" ");
-    }
-
-    Serial.println();      
-    }
-    
+    last_time = millis();
   }
 
 }

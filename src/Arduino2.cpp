@@ -28,6 +28,7 @@ void setup() {
 unsigned long last_time = 0;
 
 void loop() {
+  
   if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
     Serial.print(canMsgRec.can_id, HEX); // print ID
     Serial.print(" "); 
@@ -40,9 +41,11 @@ void loop() {
     }
     Serial.println();      
   }
+
   if(millis()-last_time == 500) {
     mcp2515.sendMessage(&canMsgSend);
     // Serial.println("Messages sent");
+    last_time = millis();
   }
   
   
