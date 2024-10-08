@@ -18,7 +18,7 @@ void setup() {
   Serial.begin(115200);
   
   mcp2515.reset();
-  mcp2515.setBitrate(CAN_500KBPS);
+  mcp2515.setBitrate(CAN_250KBPS);
   mcp2515.setNormalMode();
   
   Serial.println("------- CAN Read ----------");
@@ -29,17 +29,17 @@ unsigned long last_time = 0;
 
 void loop() {
   
-  if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
-    Serial.print(canMsgRec.can_id, HEX); // print ID
-    Serial.print(" "); 
-    Serial.print(canMsgRec.can_dlc, HEX); // print DLC
-    Serial.print(" ");
-    
-    for (int i = 0; i<canMsgRec.can_dlc; i++)  {  // print the data
-      Serial.print(canMsgRec.data[i],HEX);
-      Serial.print(" ");
+  // Detect CAN message from on board Charger ONLY -- Other CAN
+  // Polling the Message From on board charger (Every 500 ms)
+  if(millis()-last_time == 500) {
+    if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
+      Serial.print(canMsgRec.can_id, HEX); Serial.print(" "); 
+      Serial.print(canMsgRec.can_dlc, HEX); Serial.print(" ");
+      for (int i = 0; i<canMsgRec.can_dlc; i++)  {  // print the data
+        Serial.print(canMsgRec.data[i],HEX);
+        Serial.print(" ");
+      } Serial.println();      
     }
-    Serial.println();      
   }
 
   if(millis()-last_time == 500) {
