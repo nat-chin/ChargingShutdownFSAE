@@ -1,9 +1,12 @@
-/* Send And*/
+/* BMS Master unit Send And Receive to and from OBC*/
 
 #include <Arduino.h>
-#include <ArduinoSTL.h> // many C/C++ standard libs comeback
+#include <ArduinoSTL.h> // C/C++ standard libs comeback
 #include <SPI.h>
 #include <mcp2515.h>
+
+// Byte conversion , bit shifting custom functions
+#include <util.h>
 
 struct can_frame canMsgRec;
 struct can_frame canMsgSend;
@@ -29,39 +32,6 @@ void setup() {
   Serial.println("ID  DLC   DATA");
 }
 
-// Split and merge High byte low byte of 16 bit unsigned integer
-uint8_t *splitHLbyte(float num){
-  static uint8_t temp[2] = {0,0}; // initialize
-  
-  return temp;
-}
-// HighByte = splitHLbyte[0]
-// LowByte = splitHLbyte[1]
-float mergeHLbyte(uint8_t Hbyte, uint8_t Lbyte){
-  static uint16_t temp = 0;
-  // bitshiftLeft , then put to different variable
-  return temp;
-}
-
-// Encode float or uint16 into arrays of uint8
-uint8_t *Encode_bytearray(float f) { 
-    // Use memcpy to copy the bytes of the float into the array
-    static uint8_t c[sizeof(f)]; 
-    memcpy(c, &f, sizeof(f));
-    // Copy to address of array , Copy from address of float , size of float
-    // Now, c[0] to c[3] contain the bytes of the float
-    return c; 
-}
-
-// This is for voltage monitoring
-
-float Decode_bytearray(unsigned char* c) {
-    float f;
-    // Use memcpy to copy the bytes from the array back into the float
-    memcpy(&f, c, sizeof(f));
-    return f;
-}
-
 unsigned long last_time = 0;
 void loop() {
   /*
@@ -76,10 +46,10 @@ void loop() {
 
       // This block of code execute if detect CAN message from OBC ONLY--
       if(canMsgRec.can_id == 0x18FF50E5){
-        // Check The Data Through Serial Monitor
-        Serial.print(canMsgRec.can_id, HEX); Serial.print(" "); 
-        Serial.print(canMsgRec.can_dlc, HEX); Serial.print(" ");
-        for (int i = 0; i<canMsgRec.can_dlc; i++)  {  // print the data
+        // Serially Monitor The Data
+        Serial.print("ID: "); Serial.println(canMsgRec.can_id, HEX); 
+        Serial.println();Serial.println(canMsgRec.can_dlc, HEX);
+        for (int i = 0; i < canMsgRec.can_dlc; i++)  {  // print the data
           Serial.print(canMsgRec.data[i],HEX);
           Serial.print(" ");
         } Serial.println(); 
@@ -94,8 +64,20 @@ void loop() {
         float OBCAmp = mergeHLbyte(AoutH,AoutL);
 
         // Interpret OBC status, and decide on Shutdown command
-        uint8_t stat =  canMsgRec.data[4];
+        uint8_t status =  canMsgRec.data[4];
+        unsigned char* statusBits = checkLSB(status);
+        // It may be more efficient to instead of returning an array check each one if eq. to 0 or 1
+        // usually bit 1 in any position indicates somekind of faults
         // Status byte translator
+        switch (expression)
+        {
+        case /* constant-expression */:
+          /* code */
+          break;
+        
+        default:
+          break;
+        }
 
 
         // How to read status byte
@@ -114,19 +96,22 @@ void loop() {
 
 
 
-  // Normal BMS message during charge
+  // Condition 1 Normal BMS message during charge
   canMsgSend.data[0] = 0x03; // V highbyte 
   canMsgSend.data[1] = 0x3E; // V lowbyte
   canMsgSend.data[2] = 0x00; // A Highbyte
   canMsgSend.data[3] = 0x32; // A Lowbyte
-  canMsgSend.data[4] = 0x00; // Control Byte
+  canMsgSend.data[4] = 0x00; // Control Byte 0 charger operate
 
-  // Message During Shutdown
+  // Condition 2 Message During Shutdown
   canMsgSend.data[0] = 0x00; // V highbyte 
   canMsgSend.data[1] = 0x00; // V lowbyte
   canMsgSend.data[2] = 0x00; // A Highbyte
   canMsgSend.data[3] = 0x00; // A Lowbyte
-  canMsgSend.data[4] = 0x01; // Control Byte
+  canMsgSend.data[4] = 0x01; // Control Byte 1 charger shutdown
+  // Turn maximum allowable voltage and current to 0 also as fail safe
+
+  // Send TTL LOW to Charging shutdown (Passed Through opto)
 
 
   // Transmitting Control Message
