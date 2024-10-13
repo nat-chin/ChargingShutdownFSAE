@@ -1,3 +1,5 @@
+
+
 // Split and merge High byte low byte of 16 bit unsigned integer
 unsigned char *splitHLbyte(float num);
 unsigned int mergeHLbyte(unsigned char Hbyte, unsigned char Lbyte);
@@ -6,6 +8,15 @@ unsigned char *Encode_bytearray(float f);
 // This is for voltage monitoring
 float Decode_bytearray(unsigned char* c);
 // Split and Check bit from MSB -> LSB
-unsigned char *checkMSB(unsigned char num);
+unsigned char *checkstatMSB(unsigned char num);
 // Split and Check bit from LSB -> MSB
-unsigned char *checkLSB(unsigned char num);
+unsigned char *checkstatLSB(unsigned char num);
+
+
+struct status {
+  uint8_t statbin[8];
+  bool shutdownsig = 1; // Default should be 1 = OK , 0 = SHUTDOWN
+};
+
+void checkstatLSB(struct status* STAT, unsigned char num);
+status checkstatLSB(struct status STAT, unsigned char num);
