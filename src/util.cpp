@@ -1,6 +1,10 @@
 #include <iostream>
 #include <stdio.h>
 #include <util.h>
+struct status {
+  uint8_t statbin[8];
+  bool shutdownsig = 1; // Default should be 1 = OK , 0 = SHUTDOWN
+};
 // Split and merge High byte low byte of 16 bit unsigned integer
 unsigned char* splitHLbyte(unsigned int num){
   static uint8_t temp[2]; // initialize
@@ -108,47 +112,47 @@ unsigned char *checkstatLSB(unsigned char num){
 
 // Test & Debug
 
-int main() {
-  uint8_t num = 8;  // Example decimal number (42)
-  unsigned char* x;
-  // // Read & Store from MSB
-  // x = checkstatMSB(num);
-  // for (int i=0; i < 8 ; i++){
-  //   printf("%d", x[i]);
-  // }
-  // putc('\n', stdout);
+// int main() {
+//   uint8_t num = 8;  // Example decimal number (42)
+//   // unsigned char* x;
+//   // // Read & Store from MSB
+//   // x = checkstatMSB(num);
+//   // for (int i=0; i < 8 ; i++){
+//   //   printf("%d", x[i]);
+//   // }
+//   // putc('\n', stdout);
   
-  // Read & Store from LSB
-  // x = checkstatLSB(num);
-  // for (int i=0; i < 8 ; i++){
-  //   printf("%d", x[i]);
-  // }
-  // putc('\n', stdout);
+//   // Read & Store from LSB
+//   // x = checkstatLSB(num);
+//   // for (int i=0; i < 8 ; i++){
+//   //   printf("%d", x[i]);
+//   // }
+//   // putc('\n', stdout);
 
-  // Read & Store from lSB in Strcut type
-  status STAT;
-  checkstatLSB(&STAT,num);
-  for (int i=0; i < 8 ; i++){
-    printf("%d", STAT.statbin[i]);
-  }
-  putc('\n', stdout);
-  printf("%d", STAT.shutdownsig);
-  putc('\n', stdout);
+//   // Read & Store from lSB in Strcut type
+//   status STAT;
+//   checkstatLSB(&STAT,num);
+//   for (int i=0; i < 8 ; i++){
+//     printf("%d", STAT.statbin[i]);
+//   }
+//   putc('\n', stdout);
+//   printf("%d", STAT.shutdownsig);
+//   putc('\n', stdout);
 
 
-  // // Split HL byte
-  // uint16_t a = 1279;
-  // x = splitHLbyte(a);
-  // printf("%d", x[0]);
-  // putc('\n', stdout);
-  // printf("%d", x[1]);
-  // putc('\n', stdout);
+//   // // Split HL byte
+//   // uint16_t a = 1279;
+//   // x = splitHLbyte(a);
+//   // printf("%d", x[0]);
+//   // putc('\n', stdout);
+//   // printf("%d", x[1]);
+//   // putc('\n', stdout);
 
-  // // Merge HL byte
-  // uint16_t b = mergeHLbyte(x[0],x[1]);
-  // // uint16_t b = mergeHLbyte(0b0100,0b11111111);
-  // printf("%d", b);
-  // putc('\n', stdout);
+//   // // Merge HL byte
+//   // uint16_t b = mergeHLbyte(x[0],x[1]);
+//   // // uint16_t b = mergeHLbyte(0b0100,0b11111111);
+//   // printf("%d", b);
+//   // putc('\n', stdout);
 
-  return 0;
-}
+//   return 0;
+// }

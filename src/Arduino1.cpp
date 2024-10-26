@@ -1,3 +1,6 @@
+//  MUST CHANGE CAN LIB to fully support Extended Frame Transmission & Reception like 
+//
+
 /* BMS Master unit Send And Receive to and from OBC*/
 
 #include <Arduino.h>
@@ -11,9 +14,10 @@
 struct can_frame canMsgRec;
 struct can_frame canMsgSend;
 MCP2515 mcp2515(10);
-#define SDCPIN 4
+#define SDCPIN 13 // actual test will use pin4
 
 void setup() {
+  
   digitalWrite(SDCPIN,HIGH);
   Serial.begin(115200);
   /* Set up BMS CAN frame*/
@@ -29,19 +33,23 @@ void setup() {
   mcp2515.setBitrate(CAN_250KBPS);
   mcp2515.setNormalMode();
   
-  Serial.println("------- BMS CAN Enabled ----------");
-  Serial.println("ID  DLC   DATA");
+  Serial.println("------- BMS ----------");
+  // Serial.println("ID  DLC   DATA");
 }
 
 unsigned long last_time = 0;
+struct status {
+  uint8_t statbin[8];
+  bool shutdownsig = 1; // Default should be 1 = OK , 0 = SHUTDOWN
+};
 void loop() {
   
-  /* BMS Native Feature*/
-    float cellvolt = 5;
-    float dischgAmp = 5;
-    // Function to read individual Cell voltage once
-    Serial.println();
-    Serial.print("Cell Voltage: "); Serial.println(cellvolt,DEC);
+  // /* BMS Native Feature*/
+  //   float cellvolt = 5;
+  //   float dischgAmp = 5;
+  //   // Function to read individual Cell voltage once
+  //   Serial.println();
+  //   Serial.print("Cell Voltage: "); Serial.println(cellvolt,DEC);
 
   /* Minimum Voltage of 2 Module : 3.1*20 = 62V , Nominal Volage 3.6*20 = 72V
   Maximum allowable Voltage for 2 module : 83V => 830 => 0x 03 3E
@@ -73,7 +81,6 @@ void loop() {
     // Not sure if there should be any change to V,A cap limit , just fixed the number by now
     // Send TTL LOW to Charging shutdown (Passed Through opto) [/]
     mcp2515.sendMessage(&canMsgSend);
-    // Serial.println("Messages sent");
 
     // Condition 2 Message During Shutdown
     if(STAT.shutdownsig == 0){
@@ -84,10 +91,16 @@ void loop() {
       canMsgSend.data[4] = 0x01; // Control Byte 1 charger shutdown
       // Turn maximum allowable voltage and current to 0 also as fail safe
       mcp2515.sendMessage(&canMsgSend);
+      Serial.println();
     }
   
     if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
-
+      Serial.print("ID: "); Serial.println(canMsgRec.can_id, HEX); 
+      Serial.print("DLC: ");Serial.println(canMsgRec.can_dlc, HEX);
+      Serial.print("Data(Bytes): ");
+      for(int i = 0; i < canMsgRec.can_dlc; i++) {
+        Serial.print(canMsgRec.data[i],HEX); Serial.print(" ");
+      } Serial.println(); 
       // This block of code execute if detect CAN message from OBC ONLY--
       if(canMsgRec.can_id == 0x18FF50E5){
         // Monitor & Translate current Frame data
