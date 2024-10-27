@@ -1,10 +1,10 @@
 #include <iostream>
 #include <stdio.h>
 #include <util.h>
-struct status {
-  uint8_t statbin[8];
-  bool shutdownsig = 1; // Default should be 1 = OK , 0 = SHUTDOWN
-};
+// struct status {
+//   uint8_t statbin[8];
+//   bool shutdownsig = 1; // Default should be 1 = OK , 0 = SHUTDOWN
+// };
 // Split and merge High byte low byte of 16 bit unsigned integer
 unsigned char* splitHLbyte(unsigned int num){
   static uint8_t temp[2]; // initialize
