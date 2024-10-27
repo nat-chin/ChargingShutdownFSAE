@@ -2,23 +2,23 @@
 #include <SPI.h>
 #include <mcp2515.h>
 
-struct can_frame canMsgRec;
-struct can_frame canMsgSend;
+can_frame obcsent;
+can_frame bmsreceived;
 
 MCP2515 mcp2515(10);
 
 
 void setup() {
-  canMsgSend.can_id  = 0x18FF50E5;
-  canMsgSend.can_dlc = 8;
-  canMsgSend.data[0] = 0x0C;
-  canMsgSend.data[1] = 0x80; // 320 V fake data
-  canMsgSend.data[2] = 0x00;
-  canMsgSend.data[3] = 0x5A; // 9A fake data
-  canMsgSend.data[4] = 0b00010; // Send this status bit to be read from LSB order
-  canMsgSend.data[5] = 0x00;
-  canMsgSend.data[6] = 0x00;
-  canMsgSend.data[7] = 0x00;
+  obcsent.can_id  = 0x18FF50E5;
+  obcsent.can_dlc = 8;
+  obcsent.data[0] = 0x03;
+  obcsent.data[1] = 0x20; // 800 * 0.1V/s = 80 V fake data
+  obcsent.data[2] = 0x00;
+  obcsent.data[3] = 0x32; // 5A fake data
+  obcsent.data[4] = 0b00010; // Send this status bit to be read from LSB order
+  obcsent.data[5] = 0x00;
+  obcsent.data[6] = 0x00;
+  obcsent.data[7] = 0x00;
   Serial.begin(115200);
   
   mcp2515.reset();
@@ -31,13 +31,13 @@ void setup() {
 
 unsigned long last_time = 0;
 void loop() {
-  if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
-      Serial.print("ID: "); Serial.println(canMsgRec.can_id, HEX); 
-      Serial.print("DLC: ");Serial.println(canMsgRec.can_dlc, HEX);
+  if (mcp2515.readMessage(&bmsreceived) == MCP2515::ERROR_OK) {
+      Serial.print("ID: "); Serial.println(bmsreceived.can_id, HEX); 
+      Serial.print("DLC: ");Serial.println(bmsreceived.can_dlc, HEX);
       Serial.print("Data(Bytes): ");
-      for(short i = 0; i < canMsgRec.can_dlc; i++) {
+      for(short i = 0; i < bmsreceived.can_dlc; i++) {
         
-        Serial.print(canMsgRec.data[i],HEX); Serial.print(" ");
+        Serial.print(bmsreceived.data[i],HEX); Serial.print(" ");
       } Serial.println();    
     }
   // Detect CAN message from on board Charger ONLY -- Other CAN
@@ -49,7 +49,7 @@ void loop() {
     // Read the control bit , display whether BMS command is to charge or stop the charge
     // Display Max V and A from it
 
-    mcp2515.sendMessage(&canMsgSend);
+    mcp2515.sendMessage(&obcsent);
     Serial.println("Messages sent");
     last_time = millis();
   }

@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "bitset": "cpp",
+    "deque": "cpp",
+    "sstream": "cpp",
+    "string": "cpp",
+    "valarray": "cpp",
+    "vector": "cpp"
+  }
+}

@@ -11,8 +11,8 @@
 // Byte conversion , bit shifting custom functions
 #include <util.h>
 
-struct can_frame canMsgRec;
-struct can_frame canMsgSend;
+can_frame bmssent;
+can_frame obcreceived;
 MCP2515 mcp2515(10);
 #define SDCPIN 13 // actual test will use pin4
 
@@ -21,12 +21,12 @@ void setup() {
   digitalWrite(SDCPIN,HIGH);
   Serial.begin(115200);
   /* Set up BMS CAN frame*/
-    canMsgSend.can_id  = 0x1806E5F4;
-    canMsgSend.can_dlc = 8;
+    bmssent.can_id  = 0x1806E5F4;
+    bmssent.can_dlc = 8;
     // Conserved Byte
-    canMsgSend.data[5] = 0x00;
-    canMsgSend.data[6] = 0x00;
-    canMsgSend.data[7] = 0x00;
+    bmssent.data[5] = 0x00;
+    bmssent.data[6] = 0x00;
+    bmssent.data[7] = 0x00;
   
   /* MCP2515 setup */
   mcp2515.reset(); // Reset SPI 
@@ -73,41 +73,41 @@ void loop() {
     // This can be problematic as there needs to be a first message to make the OBC not entering COMMUNICATION ERROR
     // Should I condition this as well , or just leave it be??
     // Condition 1 Normal BMS message during charge
-    canMsgSend.data[0] = 0x03; // V highbyte 
-    canMsgSend.data[1] = 0x3E; // V lowbyte
-    canMsgSend.data[2] = 0x00; // A Highbyte
-    canMsgSend.data[3] = 0x32; // A Lowbyte
-    canMsgSend.data[4] = 0x00; // Control Byte 0 charger operate
+    bmssent.data[0] = 0x03; // V highbyte 
+    bmssent.data[1] = 0x3E; // V lowbyte
+    bmssent.data[2] = 0x00; // A Highbyte
+    bmssent.data[3] = 0x32; // A Lowbyte
+    bmssent.data[4] = 0x00; // Control Byte 0 charger operate
     // Not sure if there should be any change to V,A cap limit , just fixed the number by now
     // Send TTL LOW to Charging shutdown (Passed Through opto) [/]
-    mcp2515.sendMessage(&canMsgSend);
+    mcp2515.sendMessage(&bmssent);
 
     // Condition 2 Message During Shutdown
     if(STAT.shutdownsig == 0){
-      canMsgSend.data[0] = 0x00; // V highbyte 
-      canMsgSend.data[1] = 0x00; // V lowbyte
-      canMsgSend.data[2] = 0x00; // A Highbyte
-      canMsgSend.data[3] = 0x00; // A Lowbyte
-      canMsgSend.data[4] = 0x01; // Control Byte 1 charger shutdown
+      bmssent.data[0] = 0x00; // V highbyte 
+      bmssent.data[1] = 0x00; // V lowbyte
+      bmssent.data[2] = 0x00; // A Highbyte
+      bmssent.data[3] = 0x00; // A Lowbyte
+      bmssent.data[4] = 0x01; // Control Byte 1 charger shutdown
       // Turn maximum allowable voltage and current to 0 also as fail safe
-      mcp2515.sendMessage(&canMsgSend);
+      mcp2515.sendMessage(&bmssent);
       Serial.println();
     }
   
-    if (mcp2515.readMessage(&canMsgRec) == MCP2515::ERROR_OK) {
-      Serial.print("ID: "); Serial.println(canMsgRec.can_id, HEX); 
-      Serial.print("DLC: ");Serial.println(canMsgRec.can_dlc, HEX);
+    if (mcp2515.readMessage(&obcreceived) == MCP2515::ERROR_OK) {
+      Serial.print("ID: "); Serial.println(obcreceived.can_id, HEX); 
+      Serial.print("DLC: ");Serial.println(obcreceived.can_dlc, HEX);
       Serial.print("Data(Bytes): ");
-      for(int i = 0; i < canMsgRec.can_dlc; i++) {
-        Serial.print(canMsgRec.data[i],HEX); Serial.print(" ");
+      for(int i = 0; i < obcreceived.can_dlc; i++) {
+        Serial.print(obcreceived.data[i],HEX); Serial.print(" ");
       } Serial.println(); 
       // This block of code execute if detect CAN message from OBC ONLY--
-      if(canMsgRec.can_id == 0x18FF50E5){
+      if(obcreceived.can_id == 0x18FF50E5){
         // Monitor & Translate current Frame data
-        uint8_t VoutH = canMsgRec.data[0];
-        uint8_t VoutL = canMsgRec.data[1];
-        uint8_t AoutH = canMsgRec.data[2];
-        uint8_t AoutL = canMsgRec.data[3];
+        uint8_t VoutH = obcreceived.data[0];
+        uint8_t VoutL = obcreceived.data[1];
+        uint8_t AoutH = obcreceived.data[2];
+        uint8_t AoutL = obcreceived.data[3];
         // Merge High byte with low byte
         float OBCVolt = mergeHLbyte(VoutH,VoutL);
         float OBCAmp = mergeHLbyte(AoutH,AoutL);
@@ -117,7 +117,7 @@ void loop() {
         Serial.print("Charging Current[A]: "); Serial.println(OBCAmp,DEC);
         
         /* Interpret OBC status, and decide on Shutdown command */
-        uint8_t stat =  canMsgRec.data[4]; // Status Byte
+        uint8_t stat =  obcreceived.data[4]; // Status Byte
         checkstatLSB(&STAT,stat);
 
         // Shutdown if found any status bit as 1 (abnormal scenario)
