@@ -31,7 +31,8 @@ void setup() {
   
   /* MCP2515 setup */
   mcp2515.reset(); // Reset SPI 
-  mcp2515.setBitrate(CAN_250KBPS);
+  // mcp2515.setBitrate(CAN_250KBPS);
+  mcp2515.setBitrate(CAN_500KBPS);
   mcp2515.setNormalMode();
   
   Serial.println("------- BMS Master to OBC ----------");
@@ -40,10 +41,11 @@ void setup() {
 
 status STAT;
 unsigned long last_time = 0;
+unsigned long beforeTimeout = 0;
 void loop() {
   
   /* BMS Native Feature*/
-      float cellvolt = 3.2;
+      float cellvolt = 4.2;
       bool cellstat;
     // Function to read individual Cell voltage once
     // Condition to Check IF all Cell is fully Charged
@@ -61,8 +63,8 @@ void loop() {
     
     // Condition 1 Normal BMS message during charge
     if(STAT.shutdownsig == 1) {
-      bmssent.data[0] = 0x03; // V highbyte 
-      bmssent.data[1] = 0x3E; // V lowbyte 83.0 V fake data
+      bmssent.data[0] = 0x02; // V highbyte 
+      bmssent.data[1] = 0xD0; // V lowbyte 72.0 V fake data -> Range 69-72-74 V
       bmssent.data[2] = 0x00; // A Highbyte
       bmssent.data[3] = 0x32; // A Lowbyte 5.0 A fake data
       bmssent.data[4] = 0x00; // Control Byte 0 charger operate
@@ -105,21 +107,23 @@ void loop() {
           uint8_t stat =  obcreceived.data[4]; // Status Byte
           checkstatLSB(&STAT,stat);
 
-        // Shutdown if found any status bit as 1 (abnormal scenario)
-        if(STAT.shutdownsig){
-          digitalWrite(SDCPIN,HIGH);
-          Serial.print("SHUTDOWN: OK ");
-        } else {
-          digitalWrite(SDCPIN,LOW);
-          Serial.print("SHUTDOWN: NOT_OK ");
-          // Shutdown , send the command to OBC to stop , then stop CAN
-        }
-
         // Intepret Individual bit meaning
         Serial.print("OBC status: "); 
         for (short i =0 ; i <8 ; i++)
           Serial.print(STAT.statbin[i],DEC);
         Serial.println();
+
+        // Shutdown if found any status bit as 1 (abnormal scenario)
+        if(STAT.shutdownsig == 1){
+          digitalWrite(SDCPIN,HIGH);
+          Serial.println("SHUTDOWN: OK ");
+        } else {
+          digitalWrite(SDCPIN,LOW);
+          Serial.println("!!!!!!!!!!!!!!!!!!!SHUTDOWN: NOT_OK ");
+          // Shutdown , send the command to OBC to stop , then stop CAN
+        }
+
+        
         
         switch (STAT.statbin[0]) {
           case 0:
@@ -163,7 +167,7 @@ void loop() {
             break;
           
           case 1:
-            Serial.println("COMMUNICATION STATUS: Time out (6s)");
+            Serial.println("OBC Detect COMMUNICATION Time out: (6s)");
             break;
         }
 
@@ -172,13 +176,18 @@ void loop() {
           // communication timeout on the side of Charger (No command message from BMS is already dealt within OBC control system)
           // communication timeout of 6s on the side of BMS (6s of not receiving the status update from)
           // Charging Shutdown Emer button Cut only 12V Activation Signal which shutdown the  , if the
+          
       }
+      beforeTimeout = millis();
     } else {
       // if read error for 12 times (500x12 = 6000ms = 6s) Execute SHUTDOWN
-      if(millis()-last_time >= 6000){
+      // Serial.println("BMS Dectect COMMU ERROR");
+      // int x = millis()-last_time;
+      // Serial.println(x);
+      if(millis()-beforeTimeout >= 6000){
         STAT.shutdownsig = 0;
         bmssent.data[4] = 0x01; // Control Byte 1 charger shutdown
-        Serial.println("BMS Dectect COMMU ERROR");
+        Serial.println("BMS Detect COMMUNICATION Time out: (6s)");
       }
     }
     last_time = millis();

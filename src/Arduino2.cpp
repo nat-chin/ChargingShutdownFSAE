@@ -22,7 +22,8 @@ void setup() {
   Serial.begin(115200);
   
   mcp2515.reset();
-  mcp2515.setBitrate(CAN_250KBPS);
+  // mcp2515.setBitrate(CAN_250KBPS);
+  mcp2515.setBitrate(CAN_500KBPS);
   mcp2515.setNormalMode();
   
   Serial.println("------- OBC to BMS Master ----------");
