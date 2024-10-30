@@ -1,5 +1,6 @@
-//  MUST CHANGE CAN LIB to fully support Extended Frame Transmission & Reception like 
-//
+/* Minimum Voltage of 2 Module : 3.1*20 = 62V , Nominal Volage 3.6*20 = 72V
+  Maximum allowable Voltage for 2 module : 83V => 830 => 0x 03 3E
+  Maximum allowable current for 2 module : 5A => 50 => 0x 00 32 */
 
 /* BMS Master unit Send And Receive to and from OBC*/
 
@@ -33,37 +34,31 @@ void setup() {
   mcp2515.setBitrate(CAN_250KBPS);
   mcp2515.setNormalMode();
   
-  Serial.println("------- BMS ----------");
+  Serial.println("------- BMS Master to OBC ----------");
   // Serial.println("ID  DLC   DATA");
 }
 
+status STAT;
 unsigned long last_time = 0;
-// struct status {
-//   uint8_t statbin[8];
-//   bool shutdownsig = 1; // Default should be 1 = OK , 0 = SHUTDOWN
-// };
 void loop() {
   
-  // /* BMS Native Feature*/
-    //   float cellvolt = 5;
-    //   float dischgAmp = 5;
-    //   // Function to read individual Cell voltage once
-    //   Serial.println();
-    //   Serial.print("Cell Voltage: "); Serial.println(cellvolt,DEC);
-
-  /* Minimum Voltage of 2 Module : 3.1*20 = 62V , Nominal Volage 3.6*20 = 72V
-  Maximum allowable Voltage for 2 module : 83V => 830 => 0x 03 3E
-  Maximum allowable current for 2 module : 5A => 50 => 0x 00 32 */
-  // Polling the Message From on board charger (Every 500 ms)
-  status STAT;
-  // float OBCVolt = 0;
-  // float OBCAmp = 0;
-
-  // Transmitting Control Message (Every 500ms as well)
+  /* BMS Native Feature*/
+      float cellvolt = 3.2;
+      bool cellstat;
+    // Function to read individual Cell voltage once
+    // Condition to Check IF all Cell is fully Charged
+    if (cellvolt == 4.2){
+      STAT.shutdownsig = 0; // Set signal OK = 0
+      cellstat = true;
+    }
+  
+  // Polling and Transmitting Control Message (Every 500ms)
   if(millis()-last_time >= 500) {
-    
-    // This can be problematic as there needs to be a first message to make the OBC not entering COMMUNICATION ERROR
+    if(cellstat)
+      Serial.println("FULLY CHARGED");
+    // There needs to be a 1st message to make the OBC not entering COMMUNICATION ERROR
     // make sure bms both send first then recieve within 500ms. 
+    
     // Condition 1 Normal BMS message during charge
     if(STAT.shutdownsig == 1) {
       bmssent.data[0] = 0x03; // V highbyte 
@@ -71,8 +66,7 @@ void loop() {
       bmssent.data[2] = 0x00; // A Highbyte
       bmssent.data[3] = 0x32; // A Lowbyte 5.0 A fake data
       bmssent.data[4] = 0x00; // Control Byte 0 charger operate
-      // Not sure if there should be any change to V,A cap limit , just fixed the number by now
-      // Send TTL LOW to Charging shutdown (Passed through builtin Relay driver there, fine.)
+      // Send TTL LOW to Charging shutdown circuit
     } else {
       // Condition 2 Message During Shutdown
       bmssent.data[0] = 0x00; // V highbyte 
@@ -82,8 +76,9 @@ void loop() {
       bmssent.data[4] = 0x01; // Control Byte 1 charger shutdown
       // Turn maximum allowable voltage and current to 0 also as fail safe
     } mcp2515.sendMessage(MCP2515::TXB1,&bmssent);
-  
-    if (mcp2515.readMessage(&obcreceived) == MCP2515::ERROR_OK) {
+
+    // Check for read message Error -> IF readerror for 6s
+    if (mcp2515.readMessage(&obcreceived) == MCP2515::ERROR_OK) { 
       uint32_t parsedEXTId = obcreceived.can_id & ~CAN_EFF_FLAG;
       Serial.print("ID: "); Serial.println(parsedEXTId, HEX); 
       Serial.print("DLC: ");Serial.println(obcreceived.can_dlc, HEX);
@@ -107,8 +102,8 @@ void loop() {
         Serial.print("Current from OBC: "); Serial.print(OBCAmp); Serial.println("A");
         
         /* Interpret OBC status, and decide on Shutdown command */
-        uint8_t stat =  obcreceived.data[4]; // Status Byte
-        checkstatLSB(&STAT,stat);
+          uint8_t stat =  obcreceived.data[4]; // Status Byte
+          checkstatLSB(&STAT,stat);
 
         // Shutdown if found any status bit as 1 (abnormal scenario)
         if(STAT.shutdownsig){
@@ -128,7 +123,7 @@ void loop() {
         
         switch (STAT.statbin[0]) {
           case 0:
-            Serial.println("ChargerHW = Normal");
+            // Serial.println("ChargerHW = Normal");
             break;
           
           case 1:
@@ -137,7 +132,7 @@ void loop() {
         }
         switch (STAT.statbin[1]) {
           case 0:
-            Serial.println("ChargerTemp = Normal");
+            // Serial.println("ChargerTemp = Normal");
             break;
           
           case 1:
@@ -146,7 +141,7 @@ void loop() {
         }
         switch (STAT.statbin[2]) {
           case 0:
-            Serial.println("ChargerACplug = Normal");
+            // Serial.println("ChargerACplug = Normal");
             break;
           
           case 1:
@@ -155,7 +150,7 @@ void loop() {
         }
         switch (STAT.statbin[3]) {
           case 0:
-            Serial.println("Charger detects: Vbatt");
+            // Serial.println("Charger detects: Vbatt");
             break;
           
           case 1:
@@ -164,7 +159,7 @@ void loop() {
         }
         switch (STAT.statbin[4]) {
           case 0:
-            Serial.println("COMMUNICATION STATUS: Normal");
+            // Serial.println("COMMUNICATION STATUS: Normal");
             break;
           
           case 1:
@@ -176,11 +171,14 @@ void loop() {
           // Detect Communication Error
           // communication timeout on the side of Charger (No command message from BMS is already dealt within OBC control system)
           // communication timeout of 6s on the side of BMS (6s of not receiving the status update from)
-          // Charging Shutdown Emer button Should Cutout only HV or HV + Signal + LV power , if the
-
-          // uint8_t swverH = canMsgRec.data[5];
-          // uint8_t swverL = canMsgRec.data[6];
-          // uint8_t hwver = canMsgRec.data[7];
+          // Charging Shutdown Emer button Cut only 12V Activation Signal which shutdown the  , if the
+      }
+    } else {
+      // if read error for 12 times (500x12 = 6000ms = 6s) Execute SHUTDOWN
+      if(millis()-last_time >= 6000){
+        STAT.shutdownsig = 0;
+        bmssent.data[4] = 0x01; // Control Byte 1 charger shutdown
+        Serial.println("BMS Dectect COMMU ERROR");
       }
     }
     last_time = millis();
